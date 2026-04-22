@@ -20,11 +20,38 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
+          // Create participants list HTML with delete icon
+          let participantsHTML = "";
+          if (details.participants && details.participants.length > 0) {
+            participantsHTML = `
+              <div class="participants-section">
+                <strong>Participants:</strong>
+                <ul class="participants-list no-bullets">
+                  ${details.participants.map(
+                    (p) => `
+                      <li class="participant-item">
+                        <span class="participant-email">${p}</span>
+                        <span class="delete-participant" title="Remove participant" data-activity="${name}" data-email="${p}">&#128465;</span>
+                      </li>
+                    `
+                  ).join("")}
+                </ul>
+              </div>
+            `;
+          } else {
+            participantsHTML = `
+              <div class="participants-section empty">
+                <em>No participants yet.</em>
+              </div>
+            `;
+          }
+
         activityCard.innerHTML = `
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          ${participantsHTML}
         `;
 
         activitiesList.appendChild(activityCard);
@@ -39,6 +66,32 @@ document.addEventListener("DOMContentLoaded", () => {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
       console.error("Error fetching activities:", error);
     }
+  
+       // Add event listeners for delete icons after card is in DOM
+       setTimeout(() => {
+         const deleteIcons = activityCard.querySelectorAll('.delete-participant');
+         deleteIcons.forEach((icon) => {
+           icon.addEventListener('click', async (e) => {
+             const activityName = icon.getAttribute('data-activity');
+             const email = icon.getAttribute('data-email');
+             if (!activityName || !email) return;
+             if (!confirm(`Remove ${email} from ${activityName}?`)) return;
+             try {
+               const response = await fetch(`/activities/${encodeURIComponent(activityName)}/unregister?email=${encodeURIComponent(email)}`, {
+                 method: 'POST',
+               });
+               if (response.ok) {
+                 fetchActivities(); // Refresh list
+               } else {
+                 const result = await response.json();
+                 alert(result.detail || 'Failed to remove participant.');
+               }
+             } catch (err) {
+               alert('Error removing participant.');
+             }
+           });
+         });
+       }, 0);
   }
 
   // Handle form submission
